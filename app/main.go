@@ -2,28 +2,38 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"os"
+	"net/http"
 )
-
-// Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
 
 func main() {
 
-	l, err := net.Listen("tcp", "0.0.0.0:4221")
-	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
-		os.Exit(1)
+	// l, err := net.Listen("tcp", "0.0.0.0:4221")
+	// if err != nil {
+	// 	fmt.Println("Failed to bind to port 4221")
+	// 	os.Exit(1)
+	// }
+	
+	// conn, err := l.Accept()
+	// if err != nil {
+	// 	fmt.Println("Error accepting connection: ", err.Error())
+	// 	os.Exit(1)
+	// }
+	// fmt.Println("Accepted connection from: ", conn.RemoteAddr())
+
+	// conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+
+	http.HandleFunc("/", handleRoot)
+	
+	http.ListenAndServe(":4221", nil)
+
+}
+
+func handleRoot(w http.ResponseWriter, req *http.Request) {
+	fmt.Println(req.URL)
+	if req.URL.Path == "/" {
+		fmt.Fprintf(w, "HTTP/1.1 200 OK\r\n\r\n")
+	} else {
+		fmt.Fprintf(w,"HTTP/1.1 400 Not Found\r\n\r\n")
 	}
 	
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
-	fmt.Println("Accepted connection from: ", conn.RemoteAddr())
-
-	conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 }
