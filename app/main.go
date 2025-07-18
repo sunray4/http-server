@@ -29,7 +29,7 @@ func main() {
 }
 
 func handleRoot(w http.ResponseWriter, req *http.Request) {
-	fmt.Println(req.URL)
+	// fmt.Println(req.URL)
 	if req.URL.Path == "/" {
 		fmt.Fprintf(w, "HTTP/1.1 200 OK\r\n\r\n")
 	} else {
