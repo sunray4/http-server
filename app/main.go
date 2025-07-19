@@ -33,7 +33,7 @@ func main() {
 
 	req := string(buf[:n])
 
-	// splits the request in the request line, headers and body
+	// splits the request in the request line, content in headers and body
 	parts := strings.Split(req, "\r\n")
 
 	// split the request line into the http method, request target and html version
@@ -43,8 +43,18 @@ func main() {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n")) // respond to the request
 	} else if (strings.Contains(sec[1], "/echo/")) {
 		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
-		fmt.Print(res)
 		conn.Write([]byte(res) ) // respond to the request
+	} else if (sec[1] == "/user-agent") {
+		id := 0
+		for i := 0; i < len(parts); i++ {
+			if (strings.Contains(parts[i], "User-Agent")) {
+				id = i;
+				break;
+			}
+		}
+		resBody := strings.Split(parts[id], " ")[1]
+		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(resBody), resBody)
+		conn.Write([]byte(res) )
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
