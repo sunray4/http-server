@@ -1,3 +1,5 @@
+// current branch is master, and the remote location to personal repo is myorigin
+
 package main
 
 import (
@@ -39,6 +41,10 @@ func main() {
 
 	if (sec[1] == "/") {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n")) // respond to the request
+	} else if (strings.Contains(sec[1], "/echo/")) {
+		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
+		fmt.Print(res)
+		conn.Write([]byte(res) ) // respond to the request
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
