@@ -79,14 +79,13 @@ func handleGet(conn net.Conn, parts []string, sec []string) {
 		}
 		
 	} else if sec[1] == "/user-agent" {
-		id := 0
-		for i := 0; i < len(parts); i++ {
-			if strings.Contains(parts[i], "User-Agent") {
-				id = i;
+		var resBody string
+		for i := 1; i < len(parts); i++ {
+			if strings.Contains(strings.ToLower(parts[i]), "user-agent") {
+				resBody = strings.TrimSpace(strings.Split(parts[i], ":")[1])
 				break;
 			}
 		}
-		resBody := strings.Split(parts[id], " ")[1]
 		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(resBody), resBody)
 		conn.Write([]byte(res) )
 	} else if strings.Contains(sec[1], "/echo/") {
@@ -116,19 +115,34 @@ func handlePost(conn net.Conn, parts []string, sec []string) {
 }
 
 func echoCompression(conn net.Conn, parts []string, sec []string) {
-	var encoding string
+	var encodings []string
 	var res string
-	for i := 1; i < len(parts); i++ {
+	supportedCompressions := make(map[string]struct{})
+	supportedCompressions["gzip"] = struct{}{} // this server currently only supports gzip
+	for i := range parts {
 		if strings.Contains(strings.ToLower(parts[i]), "accept-encoding") {
-			encoding = strings.Split(parts[i], " ")[1]
+			encodings = strings.Split(strings.Split(parts[i], ":")[1], ",")
+			for i := range encodings {
+				encodings[i] = strings.TrimSpace(encodings[i])
+			}
 			break
 		}
 	}
 
-	if encoding == "invalid-encoding" {
+	if len(encodings) == 0 || encodings[0] == "invalid-encoding" {
 		res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
 	} else {
-		res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encoding, len(sec[1][6:]), sec[1][6:])
+		for i := range encodings {
+			_, exists := supportedCompressions[encodings[i]]
+			if exists {
+				res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encodings[i], len(sec[1][6:]), sec[1][6:])
+			}
+		}
+
+		if res == "" {
+			res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
+		}
+		
 	}
 	
 	
