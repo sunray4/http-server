@@ -49,10 +49,11 @@ func handleConnection(conn net.Conn) {
 	// split the request line into the http method, request target and html version
 	sec := strings.Split(parts[0], " ") 
 
-	if sec[0] == "GET" {
-		handleGet(conn, parts, sec)
-	} else if sec[0] == "POST" {
-		handlePost(conn, parts, sec)
+	switch sec[0] {
+		case "GET":
+			handleGet(conn, parts, sec)
+		case "POST":
+			handlePost(conn, parts, sec)
 	}
 	
 }
@@ -89,8 +90,7 @@ func handleGet(conn net.Conn, parts []string, sec []string) {
 		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(resBody), resBody)
 		conn.Write([]byte(res) )
 	} else if strings.Contains(sec[1], "/echo/") {
-		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
-		conn.Write([]byte(res) ) // respond to the request
+		echoCompression(conn, parts, sec)
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
@@ -113,6 +113,26 @@ func handlePost(conn net.Conn, parts []string, sec []string) {
 		conn.Write(([]byte("HTTP/1.1 201 Created\r\n\r\n")))
 
 	}
+}
+
+func echoCompression(conn net.Conn, parts []string, sec []string) {
+	var encoding string
+	var res string
+	for i := 1; i < len(parts); i++ {
+		if strings.Contains(strings.ToLower(parts[i]), "accept-encoding") {
+			encoding = strings.Split(parts[i], " ")[1]
+			break
+		}
+	}
+
+	if encoding == "invalid-encoding" {
+		res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(sec[1][6:]), sec[1][6:])
+	} else {
+		res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encoding, len(sec[1][6:]), sec[1][6:])
+	}
+	
+	
+	conn.Write([]byte(res) ) // respond to the request
 }
 
 // func fileSearch(root string, target string) (string, error) {
