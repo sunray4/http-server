@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-
+	
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -35,8 +35,10 @@ func main() {
 
 func handleConnection(conn net.Conn) {
 	// defer conn.Close()
+	var res string 
+
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, 1024) // size of http request currently limited to 1024 bytes
 		n, err := conn.Read(buf)
 
 		if (err != nil) {
@@ -53,17 +55,30 @@ func handleConnection(conn net.Conn) {
 
 		switch sec[0] {
 			case "GET":
-				handleGet(conn, parts, sec)
+				res = handleGet(parts, sec)
 			case "POST":
-				handlePost(conn, parts, sec)
+				res = handlePost(parts, sec)
 		}
+
+		close := checkConnClose(parts)
+		if close {
+			res = addCloseHeader(res)
+			conn.Write([]byte(res))
+			conn.Close()
+			break
+		} else {
+			conn.Write([]byte(res))
+		}
+
+		
 	}
 	
 }
 
-func handleGet(conn net.Conn, parts []string, sec []string) {
+func handleGet(parts []string, sec []string) (string) {
+	var res string
 	if sec[1] == "/" {
-		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n")) // respond to the request
+		res = "HTTP/1.1 200 OK\r\n\r\n" 
 	} else if strings.Contains(sec[1], "/files/") {
 		filename := strings.Split(sec[1], "/")[2]
 		// path, err := fileSearch(".", filename)
@@ -71,16 +86,15 @@ func handleGet(conn net.Conn, parts []string, sec []string) {
 		_, err := os.Stat(path)
 		if err != nil {
 			fmt.Print("error:", err)
-			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+			res = "HTTP/1.1 404 Not Found\r\n\r\n"
 		} else {
 			data, err := os.ReadFile(path)
 			if (err != nil) {
-				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+				res = "HTTP/1.1 404 Not Found\r\n\r\n"
+			} else {
+				res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", len(data), data)
 			}
-			res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", len(data), data)
-			conn.Write([]byte(res) ) // respond to the request
 		}
-		
 	} else if sec[1] == "/user-agent" {
 		var resBody string
 		for i := 1; i < len(parts); i++ {
@@ -89,16 +103,17 @@ func handleGet(conn net.Conn, parts []string, sec []string) {
 				break;
 			}
 		}
-		res := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(resBody), resBody)
-		conn.Write([]byte(res) )
+		res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(resBody), resBody)
 	} else if strings.Contains(sec[1], "/echo/") {
-		echoCompression(conn, parts, sec)
+		res = echoCompression(parts, sec)
 	} else {
-		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		res = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
+	return res
 }
 
-func handlePost(conn net.Conn, parts []string, sec []string) {
+func handlePost(parts []string, sec []string) (string) {
+	var res string
 	if strings.Contains(sec[1], "/files") {
 		filename := strings.Split(sec[1], "/")[2]
 		filepath := fmt.Sprintf("/tmp/data/codecrafters.io/http-server-tester/%s", filename)
@@ -108,16 +123,18 @@ func handlePost(conn net.Conn, parts []string, sec []string) {
 
 		if err!= nil {
 			fmt.Println("error writing file:", err)
-			conn.Write(([]byte("HTTP/1.1 500 Internal Server Error\r\n\r\n")))
-			return
+			res = "HTTP/1.1 500 Internal Server Error\r\n\r\n"
+		} else {
+			res = "HTTP/1.1 201 Created\r\n\r\n"
 		}
 
-		conn.Write(([]byte("HTTP/1.1 201 Created\r\n\r\n")))
-
+	} else {
+		res = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
+	return res
 }
 
-func echoCompression(conn net.Conn, parts []string, sec []string) {
+func echoCompression(parts []string, sec []string) (string) {
 	var encodings []string
 	var res string
 	supportedCompressions := make(map[string]struct{})
@@ -153,9 +170,7 @@ func echoCompression(conn net.Conn, parts []string, sec []string) {
 		}
 		
 	}
-	
-	
-	conn.Write([]byte(res) ) // respond to the request
+	return res
 }
 
 func gzipWrite(content string) ([]byte, string) {
@@ -177,11 +192,35 @@ func gzipWrite(content string) ([]byte, string) {
 	} else {
 		return nil, content
 	}
+}
 
+func checkConnClose(parts []string) (bool) {
+	for i := 1; i < len(parts); i++ {
+		if strings.Contains(strings.ToLower(parts[i]), "connection") {
+			split := strings.SplitN(parts[i], ":", 2)
+			var result string
+			if len(split) > 1 {
+				result = strings.ToLower(strings.TrimSpace(split[1]))
+				if result == "close" {
+					return true
+				}
+			} 
+		}
+	}
+	return false
+}
+
+func addCloseHeader(res string) (string) {
+	parts := strings.SplitN(res, "\r\n", 2)
+	if len(parts) > 1 {
+		newRes := parts[0] + "\r\n" + "Connection: close\r\n" + parts[1]
+		return newRes
+	} else {
+		return res
+	}
 	
 
 	
-
 }
 
 // func fileSearch(root string, target string) (string, error) {
