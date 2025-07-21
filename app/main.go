@@ -34,28 +34,29 @@ func main() {
 }
 
 func handleConnection(conn net.Conn) {
-	defer conn.Close()
+	// defer conn.Close()
+	for {
+		buf := make([]byte, 1024)
+		n, err := conn.Read(buf)
 
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
+		if (err != nil) {
+			fmt.Println("error receiving data:", err)
+		}
 
-	if (err != nil) {
-		fmt.Println("error receiving data:", err)
-	}
+		req := string(buf[:n])
 
-	req := string(buf[:n])
+		// splits the request in the request line, content in headers and body
+		parts := strings.Split(req, "\r\n")
 
-	// splits the request in the request line, content in headers and body
-	parts := strings.Split(req, "\r\n")
+		// split the request line into the http method, request target and html version
+		sec := strings.Split(parts[0], " ") 
 
-	// split the request line into the http method, request target and html version
-	sec := strings.Split(parts[0], " ") 
-
-	switch sec[0] {
-		case "GET":
-			handleGet(conn, parts, sec)
-		case "POST":
-			handlePost(conn, parts, sec)
+		switch sec[0] {
+			case "GET":
+				handleGet(conn, parts, sec)
+			case "POST":
+				handlePost(conn, parts, sec)
+		}
 	}
 	
 }
