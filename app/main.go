@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"net"
 	"os"
@@ -134,8 +136,14 @@ func echoCompression(conn net.Conn, parts []string, sec []string) {
 	} else {
 		for i := range encodings {
 			_, exists := supportedCompressions[encodings[i]]
-			if exists {
-				res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encodings[i], len(sec[1][6:]), sec[1][6:])
+			if exists && encodings[i] == "gzip" {
+				gzCont, cont := gzipWrite(sec[1][6:])
+				if cont != "" {
+					res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encodings[i], len(sec[1][6:]), cont)
+				} else {
+					res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", encodings[i], len(gzCont), gzCont)
+				}
+				
 			}
 		}
 
@@ -147,6 +155,32 @@ func echoCompression(conn net.Conn, parts []string, sec []string) {
 	
 	
 	conn.Write([]byte(res) ) // respond to the request
+}
+
+func gzipWrite(content string) ([]byte, string) {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+
+	_, err := zw.Write([]byte(content))
+	if err != nil {
+		fmt.Println("error compressing with gzip:", err)
+		return nil, content
+	}
+
+	if err := zw.Close(); err != nil {
+		fmt.Println("error closing gzip:", err)
+	}
+
+	if buf.Len() != 0 {
+		return buf.Bytes(), ""
+	} else {
+		return nil, content
+	}
+
+	
+
+	
+
 }
 
 // func fileSearch(root string, target string) (string, error) {
