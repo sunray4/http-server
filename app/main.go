@@ -1,5 +1,3 @@
-// current branch is master, and the remote location to personal repo is myorigin
-
 package main
 
 import (
