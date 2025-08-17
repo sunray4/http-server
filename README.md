@@ -1,37 +1,57 @@
-[![progress-banner](https://backend.codecrafters.io/progress/http-server/e7635be6-758e-443b-9825-3c3af7b443f0)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# HTTP Server
 
-This is a starting point for Go solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+This is a simple HTTP server written in Go, supporting concurrent and persistent TCP connections. Instead of using the net/http package, this server is built using the net package for stronger control and to understand the underlying mechanics of HTTP. This project is part of the [Codecrafters HTTP Server Challenge](https://codecrafters.io/challenges/http-server).
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
+** Note: You can try out the persistent connection by running the following command, all requests above are made through the same connection: **
 
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
-
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
-
-# Passing the first stage
-
-The entry point for your HTTP server implementation is in `app/main.go`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
-
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+```
+curl -v --data "...this is the data sent through the request body..." -H "Content-Type: application/octet-stream" http://http-server.sunray4.hackclub.app/files/file_1111 \
+     --next -X GET http://http-server.sunray4.hackclub.app/files/file_1111 \
+     --next --header "User-Agent: Mozilla/5.0" http://http-server.sunray4.hackclub.app/user-agent
 ```
 
-Time to move on to the next stage!
+## Features
 
-# Stage 2 & beyond
+** curl commands are used to test the server **
 
-Note: This section is for stages 2 and beyond.
+- write data from response body of request into a file
 
-1. Ensure you have `go (1.24)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `app/main.go`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+```
+curl -v --data "...this is the data sent through the request body..." -H "Content-Type: application/octet-stream" http://http-server.sunray4.hackclub.app/files/file_123
+```
+
+- read data from an existing file
+
+```
+curl -v -X GET http://http-server.sunray4.hackclub.app/files/file_123
+```
+
+- return user-agent of request
+
+```
+curl -v --header "User-Agent: Mozilla/5.0" http://http-server.sunray4.hackclub.app/user-agent
+```
+
+- echo string in url path
+
+```
+curl -X GET http://http-server.sunray4.hackclub.app/echo/12345
+```
+
+** this returns 12345 **
+
+- echo request data with gzip compression
+
+```
+curl -v -H "Accept-Encoding: gzip" http://http-server.sunray4.hackclub.app/echo/12345
+```
+
+** Note: running this command with curl will give you a warning because terminal can't display the gzip compressed binary data contained in the response body **
+
+- connection close
+
+```
+
+curl -v -H "Connection: close" http://http-server.sunray4.hackclub.app/
+
+```

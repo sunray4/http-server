@@ -43,6 +43,7 @@ func handleConnection(conn net.Conn) {
 
 		if (err != nil) {
 			fmt.Println("error receiving data:", err)
+			break
 		}
 
 		req := string(buf[:n])
@@ -78,19 +79,19 @@ func handleConnection(conn net.Conn) {
 func handleGet(parts []string, sec []string) (string) {
 	var res string
 	if sec[1] == "/" {
-		res = "HTTP/1.1 200 OK\r\n\r\n" 
+		res = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n" 
 	} else if strings.Contains(sec[1], "/files/") {
 		filename := strings.Split(sec[1], "/")[2]
 		// path, err := fileSearch(".", filename)
-		path := fmt.Sprintf("/tmp/data/codecrafters.io/http-server-tester/%s", filename)
+		path := fmt.Sprintf("./files/%s", filename)
 		_, err := os.Stat(path)
 		if err != nil {
 			fmt.Print("error:", err)
-			res = "HTTP/1.1 404 Not Found\r\n\r\n"
+			res = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
 		} else {
 			data, err := os.ReadFile(path)
 			if (err != nil) {
-				res = "HTTP/1.1 404 Not Found\r\n\r\n"
+				res = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
 			} else {
 				res = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", len(data), data)
 			}
@@ -107,29 +108,36 @@ func handleGet(parts []string, sec []string) (string) {
 	} else if strings.Contains(sec[1], "/echo/") {
 		res = echoCompression(parts, sec)
 	} else {
-		res = "HTTP/1.1 404 Not Found\r\n\r\n"
+		res = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
 	}
 	return res
 }
 
 func handlePost(parts []string, sec []string) (string) {
 	var res string
-	if strings.Contains(sec[1], "/files") {
+	if strings.Contains(sec[1], "/files/") {
 		filename := strings.Split(sec[1], "/")[2]
-		filepath := fmt.Sprintf("/tmp/data/codecrafters.io/http-server-tester/%s", filename)
+		filepath := fmt.Sprintf("./files/%s", filename)
+		
+		if err := os.MkdirAll("./files", 0755); err != nil {
+			fmt.Println("error creating directory:", err)
+			res = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+			return res
+		}
+		
 		content := []byte(parts[len(parts) - 1])
-
+		
 		err := os.WriteFile(filepath, content, 0664)
 
 		if err!= nil {
 			fmt.Println("error writing file:", err)
-			res = "HTTP/1.1 500 Internal Server Error\r\n\r\n"
+			res = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
 		} else {
-			res = "HTTP/1.1 201 Created\r\n\r\n"
+			res = "HTTP/1.1 201 Created\r\nContent-Length: 0\r\n\r\n"
 		}
 
 	} else {
-		res = "HTTP/1.1 404 Not Found\r\n\r\n"
+		res = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
 	}
 	return res
 }
