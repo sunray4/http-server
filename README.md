@@ -57,7 +57,5 @@ curl -v -H "Accept-Encoding: gzip" http://http-server.sunray4.hackclub.app/echo/
 - connection close
 
 ```
-
 curl -v -H "Connection: close" http://http-server.sunray4.hackclub.app/
-
 ```
